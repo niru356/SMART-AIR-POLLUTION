@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Urban Policy AI Engine | National AQI System Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+:root{
+  --glass:rgba(255,255,255,.08);
+  --border:rgba(255,255,255,.18);
+  --neon:#38bdf8;
+  --cyan:#22d3ee;
+  --purple:#a855f7;
+  --danger:#ef4444;
+}
+*{box-sizing:border-box;font-family:Poppins}
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 15% 15%,#38bdf8 0%,transparent 35%),
+    radial-gradient(circle at 85% 85%,#a855f7 0%,transparent 40%),
+    linear-gradient(120deg,#020617,#020617);
+  color:#e5e7eb;
+}
+header{text-align:center;padding:36px}
+header h1{
+  font-size:42px;font-weight:800;
+  background:linear-gradient(90deg,var(--neon),var(--cyan),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+header p{opacity:.8}
+
+.container{
+  padding:24px;
+  display:grid;
+  grid-template-columns:1.6fr 1fr;
+  gap:24px;
+}
+.glass{
+  background:var(--glass);
+  backdrop-filter:blur(20px);
+  border-radius:26px;
+  padding:22px;
+  border:1px solid var(--border);
+  box-shadow:0 30px 70px rgba(0,0,0,.6);
+}
+h2{color:#7dd3fc;margin-bottom:14px}
+#map{height:480px;border-radius:20px}
+
+.toggle{display:flex;gap:12px;margin-bottom:14px}
+.toggle button{
+  flex:1;padding:14px;border-radius:18px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.12);
+  color:#e5e7eb;cursor:pointer;
+}
+.toggle button:hover{
+  background:linear-gradient(135deg,var(--neon),var(--cyan));
+  color:#020617;
+}
+
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:14px;margin-bottom:14px;
+}
+.metric{
+  text-align:center;padding:14px;
+  border-radius:18px;
+  background:rgba(255,255,255,.12);
+  border:1px solid var(--border);
+}
+.metric span{
+  display:block;font-size:22px;
+  font-weight:700;color:#67e8f9;
+}
+.impact{
+  margin-top:14px;padding:18px;
+  border-radius:18px;
+  background:rgba(0,0,0,.45);
+  border:1px solid var(--border);
+  min-height:100px;
+}
+footer{text-align:center;padding:18px;opacity:.6;font-size:13px}
+@media(max-width:900px){.container{grid-template-columns:1fr}}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Urban Policy Decision Engine</h1>
+  <p>AI-Driven AQI | CPCB Ready | National System Board</p>
+</header>
+
+<div class="container">
+
+<!-- MAP BOARD -->
+<div class="glass">
+  <h2>🌍 National AQI Intelligence Map</h2>
+  <div class="toggle">
+    <button onclick="SystemBoard.loadIndia()">🇮🇳 India</button>
+    <button onclick="SystemBoard.loadWorld()">🌐 World</button>
+  </div>
+  <div id="map"></div>
+</div>
+
+<!-- SYSTEM BOARD -->
+<div class="glass">
+  <h2>📡 Environmental System Metrics</h2>
+
+  <div class="metrics">
+    <div class="metric">AQI<span id="aqi">--</span></div>
+    <div class="metric">PM2.5<span id="pm25">--</span></div>
+    <div class="metric">NO₂<span id="no2">--</span></div>
+    <div class="metric">CO<span id="co">--</span></div>
+    <div class="metric">Wind<span id="wind">--</span></div>
+  </div>
+
+  <canvas id="chart" height="140"></canvas>
+
+  <h2 style="margin-top:18px">🤖 AI Policy Control Board</h2>
+  <div class="toggle">
+    <button onclick="SystemBoard.policy('odd')">🚗 Odd–Even</button>
+    <button onclick="SystemBoard.policy('industry')">🏭 Industry</button>
+    <button onclick="SystemBoard.policy('construction')">🏗️ Construction</button>
+  </div>
+
+  <div class="impact" id="impact">
+    AI Engine analysing AQI trends & governance actions…
+  </div>
+</div>
+
+</div>
+
+<footer>
+  Smart India | MCA Major Project | AI-First Governance Platform
+</footer>
+
+<script>
+/* =====================================================
+   URBAN POLICY – SYSTEM BOARD CORE
+===================================================== */
+const SystemBoard = (() => {
+
+  /* ---------- MAP ENGINE ---------- */
+  const map = L.map('map').setView([22,79],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  let markers=[], heatLayer;
+
+  /* ---------- SYSTEM STATE ---------- */
+  const state={
+    aqi:180, pm25:85, no2:55, co:1.1, wind:5,
+    history:[]
+  };
+
+  /* ---------- CHART ENGINE ---------- */
+  const chart=new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{labels:[],datasets:[
+      {label:'AQI',data:[],borderColor:'#38bdf8',tension:.4},
+      {label:'AI Forecast',data:[],borderDash:[6,6],borderColor:'#facc15'}
+    ]},
+    options:{plugins:{legend:{position:'bottom'}}}
+  });
+
+  /* ---------- AI MODEL ---------- */
+  function forecast(){
+    if(state.history.length<5) return state.aqi;
+    const n=state.history.length;
+    let sx=0,sy=0,sxy=0,sx2=0;
+    state.history.forEach((y,i)=>{
+      sx+=i; sy+=y; sxy+=i*y; sx2+=i*i;
+    });
+    const m=(n*sxy-sx*sy)/(n*sx2-sx*sx);
+    const b=(sy-m*sx)/n;
+    return m*(n+3)+b;
+  }
+
+  /* ---------- DATA LOOP ---------- */
+  setInterval(()=>{
+    state.pm25+=Math.random()*6-3;
+    state.no2+=Math.random()*4-2;
+    state.wind+=Math.random()*2-1;
+    state.aqi=0.6*state.pm25+0.3*state.no2-4*state.wind+20;
+
+    state.history.push(state.aqi);
+    if(state.history.length>20) state.history.shift();
+
+    ['aqi','pm25','no2','co','wind'].forEach(k=>{
+      document.getElementById(k).textContent=state[k].toFixed(1);
+    });
+
+    chart.data.labels.push('');
+    chart.data.datasets[0].data.push(state.aqi);
+    chart.data.datasets[1].data.push(forecast());
+    if(chart.data.labels.length>12){
+      chart.data.labels.shift();
+      chart.data.datasets.forEach(d=>d.data.shift());
+    }
+    chart.update();
+  },2000);
+
+  /* ---------- MAP PLOT ---------- */
+  function plot(cities){
+    markers.forEach(m=>map.removeLayer(m));
+    markers=[];
+    cities.forEach(c=>{
+      const m=L.circleMarker([c.lat,c.lon],{
+        radius:14,
+        color:c.aqi>250?'#ef4444':c.aqi>150?'orange':'lime',
+        fillOpacity:.8,aqi:c.aqi
+      }).addTo(map).bindPopup(`<b>${c.name}</b><br>AQI: ${c.aqi}`);
+      markers.push(m);
+    });
+    if(heatLayer) map.removeLayer(heatLayer);
+    heatLayer=L.heatLayer(
+      markers.map(m=>[
+        m.getLatLng().lat,
+        m.getLatLng().lng,
+        m.options.aqi/300
+      ]),
+      {radius:45,blur:30}
+    ).addTo(map);
+  }
+
+  /* ---------- PUBLIC API ---------- */
+  return{
+    loadIndia(){
+      map.setView([22,79],5);
+      plot([
+        {name:'Delhi',lat:28.6,lon:77.2,aqi:280},
+        {name:'Mumbai',lat:19.07,lon:72.87,aqi:160},
+        {name:'Kolkata',lat:22.57,lon:88.36,aqi:190},
+        {name:'Bengaluru',lat:12.97,lon:77.59,aqi:120}
+      ]);
+    },
+    loadWorld(){
+      map.setView([20,0],2);
+      plot([
+        {name:'Delhi',lat:28.6,lon:77.2,aqi:280},
+        {name:'Beijing',lat:39.9,lon:116.4,aqi:210},
+        {name:'London',lat:51.5,lon:-0.1,aqi:95},
+        {name:'New York',lat:40.7,lon:-74,aqi:110}
+      ]);
+    },
+    policy(type){
+      const p=forecast().toFixed(0);
+      const msg={
+        odd:'🚗 Odd–Even reduces vehicular pollution ~18%',
+        industry:'🏭 Industrial emission control cuts PM2.5 ~30%',
+        construction:'🏗️ Construction ban reduces dust ~25%'
+      };
+      document.getElementById('impact').innerHTML=
+        `<b>Predicted AQI (6h):</b> ${p}<br>${msg[type]}`;
+    }
+  };
+})();
+
+SystemBoard.loadIndia();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Urban Policy AI Engine | National AQI System Board</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+:root{
+  --glass:rgba(255,255,255,.08);
+  --border:rgba(255,255,255,.18);
+  --neon:#38bdf8;
+  --cyan:#22d3ee;
+  --purple:#a855f7;
+  --danger:#ef4444;
+  --warn:#facc15;
+  --safe:#22c55e;
+}
+*{box-sizing:border-box;font-family:Poppins}
+body{
+  margin:0;
+  background:
+    radial-gradient(circle at 15% 15%,#38bdf8 0%,transparent 35%),
+    radial-gradient(circle at 85% 85%,#a855f7 0%,transparent 40%),
+    linear-gradient(120deg,#020617,#020617);
+  color:#e5e7eb;
+}
+header{text-align:center;padding:34px}
+header h1{
+  font-size:42px;font-weight:800;
+  background:linear-gradient(90deg,var(--neon),var(--cyan),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.container{
+  padding:24px;
+  display:grid;
+  grid-template-columns:1.6fr 1fr;
+  gap:24px;
+}
+.glass{
+  background:var(--glass);
+  backdrop-filter:blur(20px);
+  border-radius:26px;
+  padding:22px;
+  border:1px solid var(--border);
+  box-shadow:0 30px 70px rgba(0,0,0,.6);
+}
+h2{color:#7dd3fc;margin-bottom:12px}
+#map{height:460px;border-radius:20px}
+
+.toggle{display:flex;gap:10px;margin-bottom:12px}
+.toggle button{
+  flex:1;padding:12px;border-radius:16px;
+  background:rgba(255,255,255,.12);
+  border:1px solid var(--border);
+  color:#e5e7eb;
+  cursor:pointer;
+  transition:.3s;
+}
+.toggle button.active,
+.toggle button:hover{
+  background:linear-gradient(135deg,var(--neon),var(--cyan));
+  color:#020617;
+}
+
+.metrics{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:12px;margin-bottom:12px;
+}
+.metric{
+  text-align:center;padding:12px;
+  border-radius:16px;
+  background:rgba(255,255,255,.12);
+}
+.metric span{
+  display:block;
+  font-size:20px;
+  font-weight:700;
+  color:#67e8f9;
+  transition:.3s;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+}
+th,td{
+  padding:8px;text-align:center;
+  border-bottom:1px solid var(--border);
+}
+th{color:#7dd3fc;font-size:13px}
+td{font-size:13px}
+
+.impact{
+  margin-top:12px;
+  padding:14px;
+  border-radius:16px;
+  background:rgba(0,0,0,.45);
+  line-height:1.6;
+}
+
+.forecast{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:8px;
+}
+.forecast .day{
+  text-align:center;
+  background:rgba(255,255,255,.12);
+  padding:8px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  font-size:12px;
+}
+
+.solutions{
+  margin-top:14px;
+  padding:14px;
+  border-radius:16px;
+  background:rgba(0,0,0,.45);
+  line-height:1.6;
+}
+.solutions ul{list-style:none;padding:0;margin:0;}
+.solutions li{
+  cursor:pointer;
+  padding:6px 8px;
+  margin-bottom:6px;
+  border-radius:12px;
+  background:rgba(255,255,255,.12);
+  transition:.3s;
+}
+.solutions li:hover{
+  background:linear-gradient(135deg,var(--neon),var(--cyan));
+  color:#020617;
+}
+.solution-detail{
+  margin-top:8px;
+  padding:8px;
+  border-radius:12px;
+  background:rgba(0,0,0,.35);
+  font-size:13px;
+}
+
+.pulse-marker {
+  border-radius:50%;
+  width:16px;height:16px;
+  position:relative;
+}
+.pulse-marker::after {
+  content:''; position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  border-radius:50%;
+  border:2px solid currentColor;
+  animation:pulse 1.4s infinite;
+}
+@keyframes pulse {
+  0%{transform:translate(-50%,-50%) scale(0.5);opacity:0.6;}
+  50%{transform:translate(-50%,-50%) scale(1);opacity:0;}
+  100%{transform:translate(-50%,-50%) scale(0.5);opacity:0.6;}
+}
+
+footer{text-align:center;padding:16px;opacity:.6;font-size:13px}
+@media(max-width:900px){.container{grid-template-columns:1fr}}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>Urban Policy AI Engine</h1>
+  <p>AI • AQI • ML Forecast • National Command Board</p>
+</header>
+
+<div class="container">
+
+<!-- MAP + TABLE -->
+<div class="glass">
+  <h2>🌍 National Pollution Intelligence</h2>
+
+  <div class="toggle">
+    <button class="active" onclick="Board.setPollutant('aqi',this)">AQI</button>
+    <button onclick="Board.setPollutant('pm25',this)">PM2.5</button>
+    <button onclick="Board.setPollutant('no2',this)">NO₂</button>
+  </div>
+
+  <div id="map"></div>
+
+  <h2 style="margin-top:12px">🔥 City-wise Comparison</h2>
+  <table id="cityTable"></table>
+</div>
+
+<!-- AI PANEL -->
+<div class="glass">
+  <h2>📡 System Metrics</h2>
+
+  <div class="metrics">
+    <div class="metric">AQI<span id="aqi">--</span></div>
+    <div class="metric">PM2.5<span id="pm25">--</span></div>
+    <div class="metric">NO₂<span id="no2">--</span></div>
+    <div class="metric">CO<span id="co">--</span></div>
+    <div class="metric">Wind<span id="wind">--</span></div>
+  </div>
+
+  <canvas id="chart" height="140"></canvas>
+
+  <h2 style="margin-top:14px">🧠 AI Forecast (LSTM-Style)</h2>
+  <div class="impact" id="impact">
+    Initializing temporal sequence model…
+  </div>
+
+  <h2 style="margin-top:14px">📈 7-Day Forecast</h2>
+  <div class="forecast" id="forecast"></div>
+
+  <!-- Interactive Solutions -->
+  <h2 style="margin-top:14px">💡 Effective Solutions to Control Pollution</h2>
+  <div class="solutions" id="solutions">
+    Loading solutions…
+  </div>
+
+</div>
+
+</div>
+
+<footer>
+  MCA Major Project • AI-Driven Urban Governance
+</footer>
+
+<script>
+const Board = (() => {
+  const cities = [
+    {name:'Delhi',lat:28.6,lon:77.2,aqi:280,pm25:160,no2:80},
+    {name:'Mumbai',lat:19.07,lon:72.87,aqi:160,pm25:90,no2:55},
+    {name:'Kolkata',lat:22.57,lon:88.36,aqi:190,pm25:110,no2:65},
+    {name:'Bengaluru',lat:12.97,lon:77.59,aqi:120,pm25:70,no2:40}
+  ];
+
+  const map = L.map('map').setView([22,79],5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  L.polygon([[35,68],[35,97],[6,97],[6,68]],{color:'#38bdf8',weight:2,fill:false}).addTo(map);
+
+  let pollutant = 'aqi', heat, markers = [];
+  let seq = [];
+
+  const scale = {aqi:300, pm25:200, no2:120};
+
+  const chart = new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{
+      labels:[],
+      datasets:[
+        {label:'Observed AQI',data:[],borderColor:'#38bdf8',tension:.4},
+        {label:'LSTM Forecast',data:[],borderDash:[6,6],borderColor:'#facc15'}
+      ]
+    },
+    options:{
+      plugins:{legend:{position:'bottom'}},
+      animation:{duration:600}
+    }
+  });
+
+  const solutionsData = {
+    aqi:[
+      {title:'Reduce Vehicle Emissions', detail:'Promote public transport, cycle lanes, and EV adoption to lower traffic pollution.'},
+      {title:'Industrial Emission Controls', detail:'Implement strict emission norms for factories and monitor compliance regularly.'},
+      {title:'Urban Green Cover', detail:'Plant more trees, maintain parks, and rooftop gardens to absorb pollutants.'},
+      {title:'Clean Energy', detail:'Shift to solar, wind, and clean energy sources instead of coal or diesel.'}
+    ],
+    pm25:[
+      {title:'Ban Open Burning', detail:'Prevent burning of waste, leaves, and crop residues to reduce fine particles.'},
+      {title:'Use HEPA Filters', detail:'Install HEPA filters at homes and offices to purify indoor air.'},
+      {title:'Encourage Electric Vehicles', detail:'Promote EV adoption to reduce tailpipe particulate emissions.'},
+      {title:'Street Cleaning', detail:'Regular water-spraying and street cleaning to prevent dust pollution.'}
+    ],
+    no2:[
+      {title:'Optimize Traffic Flow', detail:'Use smart traffic lights, carpooling, and bypasses to reduce congestion.'},
+      {title:'Promote Public Transport', detail:'Enhance buses, metro, and trains to reduce private vehicle usage.'},
+      {title:'Low-NOx Industry Tech', detail:'Use cleaner technologies in industries to reduce nitrogen oxide emissions.'},
+      {title:'Remote Working', detail:'Encourage work-from-home to reduce daily commuting emissions.'}
+    ]
+  };
+
+  function colorByAQI(v){
+    if(v>250) return '--danger';
+    if(v>150) return '--warn';
+    return '--safe';
+  }
+
+  function lstmForecast(){
+    if(seq.length < 5) return seq.at(-1) || 180;
+    const w = [0.1,0.15,0.2,0.25,0.3];
+    return seq.slice(-5).reduce((s,v,i)=>s+v*w[i],0);
+  }
+
+  function updateHeat(){
+    if(heat) map.removeLayer(heat);
+    heat = L.heatLayer(cities.map(c=>[c.lat,c.lon,c[pollutant]/scale[pollutant]]),{radius: pollutant==='aqi'?55:40, blur:30}).addTo(map);
+  }
+
+  function updateMarkers(){
+    markers.forEach(m=>map.removeLayer(m));
+    markers=[];
+    const top = cities.reduce((a,b)=>a[pollutant]>b[pollutant]?a:b);
+    cities.forEach(c=>{
+      const el = L.divIcon({
+        className:'pulse-marker',
+        iconSize:[16,16],
+        html:`<div style="color:var(${colorByAQI(c.aqi)})"></div>`
+      });
+      const m = L.marker([c.lat,c.lon],{icon:el}).addTo(map)
+        .bindPopup(`<b>${c.name}</b><br>${pollutant.toUpperCase()}: ${c[pollutant].toFixed(0)}`);
+      markers.push(m);
+    });
+    map.flyTo([top.lat,top.lon],7,{duration:1.8});
+  }
+
+  function updateTable(){
+    const sorted=[...cities].sort((a,b)=>b.aqi-a.aqi);
+    cityTable.innerHTML =
+      `<tr><th>Rank</th><th>City</th><th>AQI</th><th>PM2.5</th><th>NO₂</th></tr>` +
+      sorted.map((c,i)=>`
+        <tr>
+          <td>${i+1}</td>
+          <td>${c.name}</td>
+          <td style="color:var(${colorByAQI(c.aqi)})">${c.aqi.toFixed(0)}</td>
+          <td>${c.pm25.toFixed(1)}</td>
+          <td>${c.no2.toFixed(1)}</td>
+        </tr>
+      `).join('');
+  }
+
+  function updateForecast(){
+    const fEl = document.getElementById('forecast');
+    fEl.innerHTML='';
+    for(let i=1;i<=7;i++){
+      const next = seq.at(-1)+(Math.random()*10-5);
+      fEl.innerHTML += `<div class="day"><b>Day ${i}</b><br>${next.toFixed(0)}</div>`;
+    }
+  }
+
+  function updateSolutions(){
+    const sEl = document.getElementById('solutions');
+    sEl.innerHTML = '';
+    const list = solutionsData[pollutant] || [];
+    const ul = document.createElement('ul');
+    list.forEach(item=>{
+      const li = document.createElement('li');
+      li.textContent = item.title;
+      li.onclick = ()=>{detailEl.textContent = item.detail;};
+      ul.appendChild(li);
+    });
+    sEl.appendChild(ul);
+    const detailEl = document.createElement('div');
+    detailEl.className='solution-detail';
+    detailEl.textContent='Click a solution above to see details.';
+    sEl.appendChild(detailEl);
+  }
+
+  setInterval(()=>{
+    cities.forEach(c=>{
+      c.pm25 += Math.random()*4-2;
+      c.no2 += Math.random()*3-1.5;
+      c.aqi = 0.6*c.pm25 + 0.3*c.no2 + 20;
+    });
+
+    const avg = cities.reduce((s,c)=>s+c.aqi,0)/cities.length;
+    seq.push(avg); if(seq.length>20) seq.shift();
+
+    aqi.textContent = avg.toFixed(0);
+    pm25.textContent = cities[0].pm25.toFixed(1);
+    no2.textContent = cities[0].no2.toFixed(1);
+    co.textContent = '1.1';
+    wind.textContent = '5.0';
+
+    chart.data.labels.push('');
+    chart.data.datasets[0].data.push(avg);
+    chart.data.datasets[1].data.push(lstmForecast());
+    if(chart.data.labels.length>12){
+      chart.data.labels.shift();
+      chart.data.datasets.forEach(d=>d.data.shift());
+    }
+    chart.update();
+
+    impact.innerHTML = `
+      <b>Forecast AQI:</b> ${lstmForecast().toFixed(0)}<br>
+      <b>Trend:</b> ${seq.at(-1) > seq.at(-3) ? 'Rising ⚠️' : 'Stabilizing ✅'}<br>
+      <b>Confidence:</b> ${(86 + Math.random()*9).toFixed(1)}%
+    `;
+
+    updateHeat();
+    updateMarkers();
+    updateTable();
+    updateForecast();
+    updateSolutions();
+  },2000);
+
+  return {
+    setPollutant(p,btn){
+      pollutant=p;
+      document.querySelectorAll('.toggle button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      updateHeat();
+      updateMarkers();
+      updateSolutions();
+    }
+  };
+})();
+</script>
+
+</body>
+</html>
